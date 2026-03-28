@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conversation AI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #007AFF;
+      --red: #FF3B30;
+      --orange: #FF9500;
+      --green: #34C759;
+      --bg: #F2F2F7;
+      --card: #FFFFFF;
+      --text: #1C1C1E;
+      --secondary: #8E8E93;
+      --border: #E5E5EA;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      height: 56px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    nav h1 { font-size: 17px; font-weight: 600; }
+
+    .nav-right { display: flex; gap: 8px; align-items: center; }
+
+    .nav-btn {
+      background: none;
+      border: none;
+      color: var(--blue);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-family: inherit;
+    }
+    .nav-btn:hover { background: var(--bg); }
+
+    /* ── Main ── */
+    main {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── Warning banner ── */
+    #secureBanner {
+      background: #FFF3CD;
+      border: 1px solid #FFD700;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #7A6000;
+      line-height: 1.5;
+    }
+
+    /* ── API key banner ── */
+    .api-banner {
+      background: var(--orange);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .api-banner:hover { opacity: 0.9; }
+
+    /* ── Segment control ── */
+    .segment {
+      display: flex;
+      background: var(--border);
+      border-radius: 9px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .segment button {
+      flex: 1;
+      padding: 7px 10px;
+      border: none;
+      border-radius: 7px;
+      background: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--secondary);
+      transition: all 0.15s;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+    .segment button.active {
+      background: white;
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    }
+
+    /* ── Status ── */
+    #statusText {
+      text-align: center;
+      color: var(--secondary);
+      font-size: 14px;
+      min-height: 20px;
+    }
+
+    /* ── Record button ── */
+    .record-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    #recordBtn {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      border: none;
+      background: var(--blue);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 18px rgba(0,122,255,0.4);
+      transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+    }
+    #recordBtn.recording {
+      background: var(--red);
+      box-shadow: 0 4px 18px rgba(255,59,48,0.4);
+    }
+    #recordBtn:active { transform: scale(0.95); }
+    #recordBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+    #recordBtn svg { width: 32px; height: 32px; fill: white; }
+
+    /* ── Recording bars ── */
+    .rec-bars {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      height: 40px;
+    }
+    .rec-bar {
+      width: 4px;
+      border-radius: 2px;
+      background: var(--red);
+      transform-origin: center;
+      animation: barPulse 0.5s ease-in-out infinite alternate;
+    }
+    .rec-bar:nth-child(1) { height: 12px; animation-delay: 0.0s; }
+    .rec-bar:nth-child(2) { height: 24px; animation-delay: 0.1s; }
+    .rec-bar:nth-child(3) { height: 36px; animation-delay: 0.2s; }
+    .rec-bar:nth-child(4) { height: 20px; animation-delay: 0.3s; }
+    .rec-bar:nth-child(5) { height: 28px; animation-delay: 0.4s; }
+    @keyframes barPulse {
+      from { transform: scaleY(0.3); }
+      to   { transform: scaleY(1); }
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      width: 26px; height: 26px;
+      border: 2.5px solid var(--border);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: fadeUp 0.2s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-body {
+      font-size: 15px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: var(--bg);
+      padding: 12px;
+      border-radius: 8px;
+    }
+    .card-body.live { color: var(--secondary); }
+
+    /* ── Action buttons ── */
+    .btn-row { display: flex; gap: 10px; }
+
+    .btn {
+      flex: 1;
+      padding: 12px 10px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-family: inherit;
+      transition: opacity 0.15s;
+    }
+    .btn:not(:disabled):hover { opacity: 0.85; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-primary { background: var(--blue); color: white; }
+    .btn-outline  {
+      background: var(--bg);
+      color: var(--blue);
+      border: 1.5px solid var(--border);
+    }
+
+    .key-hint {
+      font-size: 12px;
+      color: var(--orange);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .btn-close {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--secondary);
+      font-size: 20px;
+      line-height: 1;
+      padding: 0 2px;
+    }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(40,40,40,0.92);
+      color: white;
+      padding: 10px 18px;
+      border-radius: 20px;
+      font-size: 14px;
+      opacity: 0;
+      transition: all 0.25s;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 300;
+      max-width: 90vw;
+      text-align: center;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: flex;
+      align-items: flex-end;
+      z-index: 200;
+      animation: fadeIn 0.2s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal {
+      background: var(--bg);
+      border-radius: 16px 16px 0 0;
+      width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding-bottom: 24px;
+      animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(40px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 16px 12px;
+      position: sticky;
+      top: 0;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .modal-title { font-size: 17px; font-weight: 600; }
+    .btn-done {
+      background: none; border: none;
+      color: var(--blue); font-size: 17px;
+      font-weight: 600; cursor: pointer; font-family: inherit;
+    }
+
+    /* ── Form sections ── */
+    .form-section { padding: 0 16px 16px; }
+
+    .form-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 8px;
+      padding-left: 4px;
+    }
+
+    .form-card {
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .form-row {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+    }
+    .form-row:last-child { border-bottom: none; }
+
+    .form-row input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--text);
+      background: none;
+    }
+    .form-row input::placeholder { color: var(--secondary); }
+
+    .form-footer {
+      font-size: 12px;
+      color: var(--secondary);
+      padding: 6px 4px 0;
+      line-height: 1.5;
+    }
+
+    .hiw-row {
+      padding: 11px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    .hiw-row:last-child { border-bottom: none; }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <h1 id="navTitle">Conversation AI</h1>
+  <div class="nav-right">
+    <button class="nav-btn" id="langToggleBtn" onclick="toggleAppLang()">日本語</button>
+    <button class="nav-btn" onclick="openSettings()">⚙️ <span id="settingsLabel">Settings</span></button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- Secure context warning (Chrome file://) -->
+  <div id="secureBanner" class="hidden">
+    ⚠️ Speech recognition requires a secure context. Open this file via a local server:<br>
+    <code style="user-select:all">python3 -m http.server 8000</code> then visit <code>http://localhost:8000</code>
+  </div>
+
+  <!-- API key banner -->
+  <button class="api-banner hidden" id="apiBanner" onclick="openSettings()">
+    🔑 <span id="bannerText">Tap here to add your Claude API key!</span>
+  </button>
+
+  <!-- Provider picker -->
+  <div class="segment" id="providerPicker">
+    <button onclick="setProvider('claude')">✨ Claude</button>
+    <button onclick="setProvider('chatgpt')">💬 ChatGPT</button>
+  </div>
+
+  <!-- Status -->
+  <p id="statusText">Tap the mic to start recording</p>
+
+  <!-- Record button -->
+  <div class="record-wrap">
+    <button id="recordBtn" onclick="toggleRecording()">
+      <svg id="micIcon" viewBox="0 0 24 24">
+        <path d="M12 1a4 4 0 0 1 4 4v7a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm0 2a2 2 0 0 0-2 2v7a2 2 0 0 0 4 0V5a2 2 0 0 0-2-2zm-7 9a7 7 0 0 0 14 0h2a9 9 0 0 1-8 8.94V23h-2v-2.06A9 9 0 0 1 3 12z"/>
+      </svg>
+      <svg id="stopIcon" viewBox="0 0 24 24" class="hidden">
+        <rect x="4" y="4" width="16" height="16" rx="2"/>
+      </svg>
+    </button>
+
+    <div class="rec-bars hidden" id="recBars">
+      <div class="rec-bar"></div>
+      <div class="rec-bar"></div>
+      <div class="rec-bar"></div>
+      <div class="rec-bar"></div>
+      <div class="rec-bar"></div>
+    </div>
+  </div>
+
+  <!-- Spinner -->
+  <div class="spinner hidden" id="spinner"></div>
+
+  <!-- Transcript card -->
+  <div class="card hidden" id="transcriptCard">
+    <div class="card-header">
+      <span class="card-title">💬 <span id="transcriptLabel">Transcript</span></span>
+    </div>
+    <div class="card-body" id="transcriptText"></div>
+    <div class="btn-row">
+      <button class="btn btn-outline" id="detectBtn" onclick="detectSpeakers()">
+        👥 <span id="detectLabel">Detect Speakers</span>
+      </button>
+      <button class="btn btn-primary" id="summarizeBtn" onclick="summarize()">
+        ✨ <span id="summarizeLabel">Summarize</span>
+      </button>
+    </div>
+    <p class="key-hint hidden" id="keyHint">🔑 <span id="keyHintText">Add your API key in Settings</span></p>
+  </div>
+
+  <!-- Summary card -->
+  <div class="card hidden" id="summaryCard">
+    <div class="card-header">
+      <span class="card-title">📋 <span id="keyPointsLabel">Key Points</span></span>
+      <button class="btn-close" onclick="clearSummary()">✕</button>
+    </div>
+    <div class="card-body" id="summaryText"></div>
+  </div>
+
+</main>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- Settings modal -->
+<div class="modal-overlay hidden" id="modal" onclick="onOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Settings</span>
+      <button class="btn-done" id="doneBtn" onclick="closeSettings()">Done</button>
+    </div>
+
+    <!-- App Language -->
+    <div class="form-section">
+      <div class="form-section-title" id="appLangTitle">App Language</div>
+      <div class="form-card">
+        <div class="form-row">
+          <div class="segment" style="width:100%">
+            <button id="langEnBtn" onclick="setAppLang('en')">English</button>
+            <button id="langJaBtn" onclick="setAppLang('ja')">日本語</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transcription Language -->
+    <div class="form-section">
+      <div class="form-section-title" id="transLangTitle">Transcription Language</div>
+      <div class="form-card">
+        <div class="form-row">
+          <div class="segment" style="width:100%">
+            <button id="transAutoBtn" onclick="setTransLang('auto')">Auto</button>
+            <button id="transEnBtn"   onclick="setTransLang('en')">English</button>
+            <button id="transJaBtn"   onclick="setTransLang('ja')">日本語</button>
+          </div>
+        </div>
+      </div>
+      <p class="form-footer" id="transLangFooter">In Auto mode, the app will use your browser's language setting for transcription.</p>
+    </div>
+
+    <!-- Claude API Key -->
+    <div class="form-section">
+      <div class="form-section-title" id="claudeKeyTitle">Claude API Key</div>
+      <div class="form-card">
+        <div class="form-row">
+          <input type="password" id="claudeInput" placeholder="sk-ant-api..." oninput="saveKey('claude', this.value)">
+        </div>
+      </div>
+      <p class="form-footer" id="claudeFooter">Get your key at console.anthropic.com</p>
+    </div>
+
+    <!-- ChatGPT API Key -->
+    <div class="form-section">
+      <div class="form-section-title" id="chatgptKeyTitle">ChatGPT API Key</div>
+      <div class="form-card">
+        <div class="form-row">
+          <input type="password" id="chatgptInput" placeholder="sk-..." oninput="saveKey('chatgpt', this.value)">
+        </div>
+      </div>
+      <p class="form-footer" id="chatgptFooter">Get your key at platform.openai.com</p>
+    </div>
+
+    <!-- How it works -->
+    <div class="form-section">
+      <div class="form-section-title" id="hiwTitle">How it works</div>
+      <div class="form-card">
+        <div class="hiw-row">🎙️ <span id="hiw1">Record any conversation</span></div>
+        <div class="hiw-row">🌐 <span id="hiw2">Speech is transcribed live in your browser</span></div>
+        <div class="hiw-row">✨ <span id="hiw3">AI summarizes the key points</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let provider     = localStorage.getItem('provider')  || 'claude';
+let appLang      = localStorage.getItem('appLang')   || 'en';
+let transLang    = localStorage.getItem('transLang') || 'auto';
+let isRecording  = false;
+let isProcessing = false;
+let recognition  = null;
+let finalText    = '';
+
+// ── Strings ────────────────────────────────────────────────────────────────────
+const STRINGS = {
+  en: {
+    navTitle: 'Conversation AI',
+    settings: 'Settings', done: 'Done', langToggle: '日本語',
+    tapToRecord: 'Tap the mic to start recording',
+    recording: 'Recording... tap to stop',
+    summarizingWith: p => `Summarizing with ${p}...`,
+    summaryReady: 'Summary ready',
+    detecting: 'Detecting...',
+    detectSpeakers: 'Detect Speakers',
+    summarizeWith: p => `Summarize with ${p}`,
+    summarizing: 'Summarizing...',
+    transcript: 'Transcript', keyPoints: 'Key Points',
+    noSpeech: 'No speech detected',
+    transcriptComplete: 'Transcription complete — ready to summarize',
+    apiBanner: p => `🔑 Tap here to add your ${p} API key!`,
+    keyHint: p => `Add your ${p} API key in Settings`,
+    appLangTitle: 'App Language', transLangTitle: 'Transcription Language',
+    transLangFooter: "In Auto mode, the app will use your browser's language setting for transcription.",
+    claudeKeyTitle: 'Claude API Key', claudeFooter: 'Get your key at console.anthropic.com',
+    chatgptKeyTitle: 'ChatGPT API Key', chatgptFooter: 'Get your key at platform.openai.com',
+    hiwTitle: 'How it works',
+    hiw1: 'Record any conversation',
+    hiw2: 'Speech is transcribed live in your browser',
+    hiw3: 'AI summarizes the key points',
+    noSRSupport: 'Speech recognition is not supported in this browser. Please use Chrome or Safari.',
+    summarizeFail: e => `Summarization failed: ${e}`,
+    speakerFail:   e => `Speaker detection failed: ${e}`,
+  },
+  ja: {
+    navTitle: '会話AI',
+    settings: '設定', done: '完了', langToggle: 'English',
+    tapToRecord: 'マイクをタップして録音を開始',
+    recording: '録音中...タップして停止',
+    summarizingWith: p => `${p}で要約中...`,
+    summaryReady: '要約完了',
+    detecting: '検出中...',
+    detectSpeakers: '話者を検出',
+    summarizeWith: p => `${p}で要約`,
+    summarizing: '要約中...',
+    transcript: '文字起こし', keyPoints: '重要ポイント',
+    noSpeech: '音声が検出されませんでした',
+    transcriptComplete: '文字起こし完了 — 要約する準備ができました',
+    apiBanner: p => `🔑 ${p} APIキーを追加するにはここをタップ！`,
+    keyHint: p => `設定で${p} APIキーを追加してください`,
+    appLangTitle: 'アプリ言語', transLangTitle: '文字起こし言語',
+    transLangFooter: '自動モードでは、ブラウザの言語設定を使用して文字起こしします。',
+    claudeKeyTitle: 'Claude APIキー', claudeFooter: 'console.anthropic.comでキーを取得してください',
+    chatgptKeyTitle: 'ChatGPT APIキー', chatgptFooter: 'platform.openai.comでキーを取得してください',
+    hiwTitle: '使い方',
+    hiw1: '会話を録音する',
+    hiw2: '音声はブラウザでリアルタイム文字起こしされます',
+    hiw3: 'AIが重要ポイントを要約します',
+    noSRSupport: 'このブラウザでは音声認識がサポートされていません。ChromeまたはSafariを使用してください。',
+    summarizeFail: e => `要約に失敗しました: ${e}`,
+    speakerFail:   e => `話者検出に失敗しました: ${e}`,
+  }
+};
+const s = () => STRINGS[appLang];
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+window.onload = () => {
+  // Restore saved keys
+  document.getElementById('claudeInput').value  = localStorage.getItem('claudeKey')  || '';
+  document.getElementById('chatgptInput').value = localStorage.getItem('chatgptKey') || '';
+
+  // Check secure context (needed for SpeechRecognition in Chrome)
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    document.getElementById('secureBanner').classList.remove('hidden');
+    document.getElementById('recordBtn').disabled = true;
+  }
+
+  applyLang(appLang);
+  applyProvider(provider);
+  applyTransLang(transLang);
+};
+
+// ── Language ───────────────────────────────────────────────────────────────────
+function applyLang(lang) {
+  appLang = lang;
+  localStorage.setItem('appLang', lang);
+  const t = s();
+
+  setText('navTitle', t.navTitle);
+  setText('settingsLabel', t.settings);
+  setText('modalTitle', t.settings);
+  setText('doneBtn', t.done);
+  setText('langToggleBtn', t.langToggle);
+  setText('statusText', t.tapToRecord);
+  setText('transcriptLabel', t.transcript);
+  setText('keyPointsLabel', t.keyPoints);
+  setText('detectLabel', t.detectSpeakers);
+  setText('summarizeLabel', t.summarizeWith(providerName()));
+  setText('appLangTitle', t.appLangTitle);
+  setText('transLangTitle', t.transLangTitle);
+  setText('transLangFooter', t.transLangFooter);
+  setText('claudeKeyTitle', t.claudeKeyTitle);
+  setText('claudeFooter', t.claudeFooter);
+  setText('chatgptKeyTitle', t.chatgptKeyTitle);
+  setText('chatgptFooter', t.chatgptFooter);
+  setText('hiwTitle', t.hiwTitle);
+  setText('hiw1', t.hiw1);
+  setText('hiw2', t.hiw2);
+  setText('hiw3', t.hiw3);
+
+  setActive('langEnBtn', lang === 'en');
+  setActive('langJaBtn', lang === 'ja');
+  refreshBanner();
+}
+
+function toggleAppLang() { applyLang(appLang === 'en' ? 'ja' : 'en'); }
+function setAppLang(lang) { applyLang(lang); }
+
+function applyTransLang(lang) {
+  transLang = lang;
+  localStorage.setItem('transLang', lang);
+  setActive('transAutoBtn', lang === 'auto');
+  setActive('transEnBtn',   lang === 'en');
+  setActive('transJaBtn',   lang === 'ja');
+}
+function setTransLang(lang) { applyTransLang(lang); }
+
+function recogLang() {
+  if (transLang === 'en') return 'en-US';
+  if (transLang === 'ja') return 'ja-JP';
+  const bl = navigator.language || 'en-US';
+  return bl.startsWith('ja') ? 'ja-JP' : bl;
+}
+
+// ── Provider ───────────────────────────────────────────────────────────────────
+function applyProvider(p) {
+  provider = p;
+  localStorage.setItem('provider', p);
+  const btns = document.querySelectorAll('#providerPicker button');
+  btns[0].classList.toggle('active', p === 'claude');
+  btns[1].classList.toggle('active', p === 'chatgpt');
+  setText('summarizeLabel', s().summarizeWith(providerName()));
+  refreshBanner();
+}
+function setProvider(p) { applyProvider(p); }
+function providerName() { return provider === 'claude' ? 'Claude' : 'ChatGPT'; }
+function activeKey() {
+  return provider === 'claude'
+    ? (localStorage.getItem('claudeKey')  || '')
+    : (localStorage.getItem('chatgptKey') || '');
+}
+
+// ── Settings ───────────────────────────────────────────────────────────────────
+function openSettings()  { document.getElementById('modal').classList.remove('hidden'); }
+function closeSettings() {
+  document.getElementById('modal').classList.add('hidden');
+  refreshBanner();
+}
+function onOverlayClick(e) {
+  if (e.target === document.getElementById('modal')) closeSettings();
+}
+function saveKey(type, val) {
+  localStorage.setItem(type === 'claude' ? 'claudeKey' : 'chatgptKey', val);
+  refreshBanner();
+}
+
+// ── Banner ─────────────────────────────────────────────────────────────────────
+function refreshBanner() {
+  const hasKey = !!activeKey();
+  toggle('apiBanner', !hasKey);
+  toggle('keyHint',   !hasKey);
+  if (!hasKey) {
+    setText('bannerText', s().apiBanner(providerName()).replace('🔑 ', ''));
+    setText('keyHintText', s().keyHint(providerName()));
+  }
+  const hasTrans = !!document.getElementById('transcriptText').textContent.trim();
+  if (hasTrans) {
+    document.getElementById('summarizeBtn').disabled = !hasKey || isProcessing;
+    document.getElementById('detectBtn').disabled    = !hasKey || isProcessing;
+  }
+}
+
+// ── Recording ──────────────────────────────────────────────────────────────────
+function toggleRecording() {
+  isRecording ? stopRecording() : startRecording();
+}
+
+function startRecording() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast(s().noSRSupport); return; }
+
+  finalText = '';
+  toggle('transcriptCard', false);
+  toggle('summaryCard',    false);
+
+  recognition = new SR();
+  recognition.continuous      = true;
+  recognition.interimResults  = true;
+  recognition.lang            = recogLang();
+
+  recognition.onresult = (event) => {
+    let interim = '';
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const chunk = event.results[i][0].transcript;
+      if (event.results[i].isFinal) finalText += chunk + ' ';
+      else interim += chunk;
+    }
+    const display = (finalText + interim).trim();
+    if (display) {
+      document.getElementById('transcriptText').textContent = display;
+      document.getElementById('transcriptText').classList.toggle('live', !!interim);
+      toggle('transcriptCard', true);
+    }
+  };
+
+  recognition.onerror = (event) => {
+    if (event.error === 'no-speech') return;
+    stopRecording();
+    showToast(`Error: ${event.error}`);
+  };
+
+  // Chrome auto-stops on silence — restart transparently
+  recognition.onend = () => {
+    if (isRecording) { try { recognition.start(); } catch(e) {} }
+  };
+
+  recognition.start();
+  isRecording = true;
+  setStatus(s().recording);
+  setRecordingUI(true);
+}
+
+function stopRecording() {
+  isRecording = false;
+  if (recognition) {
+    recognition.onend = null;
+    recognition.stop();
+    recognition = null;
+  }
+
+  const transcript = finalText.trim();
+  document.getElementById('transcriptText').classList.remove('live');
+  setRecordingUI(false);
+
+  if (transcript) {
+    document.getElementById('transcriptText').textContent = transcript;
+    toggle('transcriptCard', true);
+    setStatus(s().transcriptComplete);
+    const hasKey = !!activeKey();
+    document.getElementById('summarizeBtn').disabled = !hasKey;
+    document.getElementById('detectBtn').disabled    = !hasKey;
+    toggle('keyHint', !hasKey);
+  } else {
+    setStatus(s().noSpeech);
+  }
+}
+
+function setRecordingUI(on) {
+  const btn = document.getElementById('recordBtn');
+  btn.classList.toggle('recording', on);
+  toggle('micIcon',  !on);
+  toggle('stopIcon',  on);
+  toggle('recBars',   on);
+}
+
+// ── AI calls ───────────────────────────────────────────────────────────────────
+async function callAI(message) {
+  const key = activeKey();
+  if (!key) throw new Error('No API key');
+
+  if (provider === 'claude') {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: message }]
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+    return data.content[0].text;
+  } else {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        max_tokens: 2048,
+        messages: [{ role: 'user', content: message }]
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+    return data.choices[0].message.content;
+  }
+}
+
+// ── Summarize ──────────────────────────────────────────────────────────────────
+async function summarize() {
+  const transcript = document.getElementById('transcriptText').textContent.trim();
+  if (!transcript || isProcessing) return;
+
+  setProcessing(true);
+  setStatus(s().summarizingWith(providerName()));
+  setText('summarizeLabel', s().summarizing);
+
+  const prompt =
+    `Summarize every important point from this conversation transcript. ` +
+    `Cover all key points — do not skip anything significant, use as many bullet points as needed. ` +
+    `For each bullet point, add a short citation in quotes from the transcript that supports it, formatted like this:\n` +
+    `• Key point here. ("exact short quote from transcript")\n` +
+    `Respond in the same language as the transcript.\n\nTranscript:\n${transcript}`;
+
+  try {
+    const result = await callAI(prompt);
+    document.getElementById('summaryText').textContent = result;
+    toggle('summaryCard', true);
+    setStatus(s().summaryReady);
+  } catch (e) {
+    showToast(s().summarizeFail(e.message));
+    setStatus(s().transcriptComplete);
+  } finally {
+    setProcessing(false);
+    setText('summarizeLabel', s().summarizeWith(providerName()));
+  }
+}
+
+// ── Detect speakers ────────────────────────────────────────────────────────────
+async function detectSpeakers() {
+  const transcript = document.getElementById('transcriptText').textContent.trim();
+  if (!transcript || isProcessing) return;
+
+  setProcessing(true);
+  setText('detectLabel', s().detecting);
+
+  const prompt =
+    `The following is a raw speech transcript with no speaker labels. ` +
+    `Reformat it by guessing where speakers change based on context and conversation flow. ` +
+    `Label them as "Speaker 1:", "Speaker 2:", etc. and put each speaker on a new line. ` +
+    `Keep every word exactly as spoken — do not summarize, shorten, or change anything. ` +
+    `If you truly cannot detect any speaker changes, return the original text split into readable lines. ` +
+    `Respond in the same language as the transcript.\n\nTranscript:\n${transcript}`;
+
+  try {
+    const result = await callAI(prompt);
+    document.getElementById('transcriptText').textContent = result;
+  } catch (e) {
+    showToast(s().speakerFail(e.message));
+  } finally {
+    setProcessing(false);
+    setText('detectLabel', s().detectSpeakers);
+  }
+}
+
+function clearSummary() {
+  toggle('summaryCard', false);
+  document.getElementById('summaryText').textContent = '';
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function setStatus(text) { setText('statusText', text); }
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+function toggle(id, show) {
+  document.getElementById(id).classList.toggle('hidden', !show);
+}
+function setActive(id, active) {
+  document.getElementById(id).classList.toggle('active', active);
+}
+
+function setProcessing(on) {
+  isProcessing = on;
+  toggle('spinner', on);
+  document.getElementById('summarizeBtn').disabled = on;
+  document.getElementById('detectBtn').disabled    = on;
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 4000);
+}
+</script>
+</body>
+</html>
